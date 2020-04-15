@@ -8,3 +8,6 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fsanitize=leak -fsanitize=undefined")
 
 add_executable(in_memory_mapreduce main.cpp)
+
+find_package(Boost REQUIRED COMPONENTS system)
+target_link_libraries(in_memory_mapreduce Boost::system)
