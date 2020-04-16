@@ -14,7 +14,10 @@ bool Parse(int argc, char** argv, OperationSpec* spec) {
         "Runs specified script either as a mapper or as a reducer.\n"
         "There are 2 modes for specifying it: map and reduce.\n"
         "Please, note that only one mode must be specified at a time.\n"
-        "Both scripts work with tsv key-value files.\n\n"
+        "Both scripts must work with tsv key-value files.\n"
+        "Additionally with option --count you can specify how many\n"
+        "mappers to run. Option has no effect with reduce mode.\n"
+        "For each unique key separate reducer is run.\n\n"
         "Arguments");
 
     bool is_map, is_reduce;
@@ -24,7 +27,9 @@ bool Parse(int argc, char** argv, OperationSpec* spec) {
         ("reduce", po::bool_switch(&is_reduce), "setup reduce mode")
         ("script_path,s", po::value<std::string>(), "path to map/reduce script")
         ("src_file,i", po::value<std::string>(), "tsv input file")
-        ("dst_file,o", po::value<std::string>(), "tsv output file");
+        ("dst_file,o", po::value<std::string>(), "tsv output file")
+        ("count,c", po::value<uint32_t>()->default_value(1),
+         "number of mappers to run");
 
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, desc), vm);
@@ -59,6 +64,7 @@ bool Parse(int argc, char** argv, OperationSpec* spec) {
     spec->script_path = script_path->second.as<std::string>();
     spec->src_file = src_file->second.as<std::string>();
     spec->dst_file = dst_file->second.as<std::string>();
+    spec->count = vm["count"].as<uint32_t>();
   } catch (std::exception& e) {
     std::cerr << "Error: " << e.what() << "\n";
     return false;

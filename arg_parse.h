@@ -15,6 +15,7 @@ struct OperationSpec {
   std::string script_path;
   std::string src_file;
   std::string dst_file;
+  uint32_t count;
 };
 
 bool Parse(int argc, char** argv, OperationSpec* spec);
