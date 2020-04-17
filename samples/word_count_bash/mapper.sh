@@ -6,6 +6,6 @@ while read -r line; do
 
   # tr -cd ' ' <<< "value" | wc -c
   while read -r -d' ' word; do
-    echo "$word 1"
+    echo "$word"$'\t'1
   done <<< "$value "
 done
