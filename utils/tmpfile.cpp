@@ -17,3 +17,7 @@ void TmpFile::Reopen(std::ios::openmode mode) {
 std::fstream& TmpFile::Stream() {
   return stream_;
 }
+
+boost::filesystem::path TmpFile::GetPath() const {
+  return boost::filesystem::current_path() / path_;
+}

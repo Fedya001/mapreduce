@@ -18,6 +18,8 @@ class TmpFile {
   void Reopen(std::ios::openmode mod);
   std::fstream& Stream();
 
+  boost::filesystem::path GetPath() const;
+
  private:
   boost::filesystem::path path_;
   std::fstream stream_;
