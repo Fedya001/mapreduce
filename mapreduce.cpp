@@ -3,7 +3,6 @@
 #include <boost/filesystem.hpp>
 #include <boost/process.hpp>
 #include <vector>
-#include <iostream>
 
 namespace mapreduce {
 
@@ -25,36 +24,64 @@ void MasterManager::RunMappers(uint32_t count) const {
   std::vector<size_t> jobs_sizes(count, records_per_map);
   std::for_each(jobs_sizes.begin(), jobs_sizes.begin() + extra_records_number,
                 [](size_t& size) { ++size; });
-  auto inputs = SplitRecordsIntoFiles(records, jobs_sizes);
 
+  auto inputs = SplitRecordsIntoFiles(records, jobs_sizes);
+  auto outputs = Run(inputs);
+  JoinFiles(outputs, dst_file_);
+}
+
+void MasterManager::RunReducers() const {
+  auto records = ExtractRecords(src_file_);
+  std::sort(records.begin(), records.end());
+
+  std::vector<size_t> jobs_sizes;
+  auto iter = records.begin();
+
+  while (iter != records.end()) {
+    auto next = std::adjacent_find(
+        iter, records.end(), [](const auto& lhs, const auto& rhs) {
+          return lhs.key != rhs.key;
+        });
+    jobs_sizes.push_back(std::distance(iter, next));
+    iter = next;
+    if (iter != records.end()) {
+      ++iter;
+      ++jobs_sizes.back();
+    }
+  }
+
+  auto inputs = SplitRecordsIntoFiles(records, jobs_sizes);
+  auto outputs = Run(inputs);
+  JoinFiles(outputs, dst_file_);
+}
+
+MasterManager::Record::Record(std::string key, std::string value)
+    : key(std::move(key)), value(std::move(value)) {}
+
+void MasterManager::Record::DumpToFile(TmpFile& file) const {
+  file.Stream() << key << '\t' << value << '\n';
+}
+
+std::vector<TmpFile> MasterManager::Run(std::vector<TmpFile>& inputs) const {
   std::vector<TmpFile> outputs;
-  outputs.reserve(count);
-  std::generate_n(std::back_inserter(outputs), count,
-                  [] { return TmpFile(std::ios::in | std::ios::out); });
+  outputs.reserve(inputs.size());
 
   std::vector<bp::child> children;
-  for (size_t map_id = 0; map_id < count; ++map_id) {
+  children.reserve(inputs.size());
+  for (auto&& input : inputs) {
+    outputs.emplace_back(std::ios::in | std::ios::out);
     children.emplace_back(
         bp::search_path(script_path_,
                         {boost::filesystem::current_path()}).string(),
-        bp::std_in < inputs[map_id].GetPath().string(),
-        bp::std_out > outputs[map_id].GetPath().string());
+        bp::std_in < input.GetPath().string(),
+        bp::std_out > outputs.back().GetPath().string());
   }
 
   for (auto&& child : children) {
     child.wait();
   }
 
-  JoinFiles(outputs, dst_file_);
-}
-
-void MasterManager::RunReducers() const {
-  Sort();
-  // TODO : implement it
-}
-
-void MasterManager::Sort() const {
-  // TODO : implement it
+  return outputs;
 }
 
 MasterManager::Records MasterManager::ExtractRecords(
@@ -63,8 +90,12 @@ MasterManager::Records MasterManager::ExtractRecords(
 
   std::ifstream src(file);
   while (src.peek() != EOF) {
-    records.emplace_back();
-    std::getline(src, records.back());
+    std::string buffer;
+    std::getline(src, buffer);
+    size_t tab_pos = buffer.find('\t');
+    auto value = buffer.substr(tab_pos + 1);
+    buffer.erase(tab_pos);
+    records.emplace_back(std::move(buffer), std::move(value));
   }
 
   return records;
@@ -81,7 +112,7 @@ std::vector<TmpFile> MasterManager::SplitRecordsIntoFiles(
   size_t record_id = 0;
   for (size_t job_id = 0; job_id < jobs_sizes.size(); ++job_id) {
     for (size_t i = 0; i < jobs_sizes[job_id]; ++i) {
-      files[job_id].Stream() << records[record_id++] << '\n';
+      records[record_id++].DumpToFile(files[job_id]);
     }
     files[job_id].Stream().flush();
   }
@@ -99,6 +130,11 @@ void MasterManager::JoinFiles(std::vector<TmpFile>& files,
       joined << buffer << '\n';
     }
   }
+}
+
+bool operator<(const MasterManager::Record& lhs,
+               const MasterManager::Record& rhs) {
+  return lhs.key < rhs.key;
 }
 
 } // namespace mapreduce

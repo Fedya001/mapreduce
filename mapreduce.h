@@ -7,16 +7,23 @@ namespace mapreduce {
 
 class MasterManager {
  public:
-  typedef std::vector<std::string> Records;
-
   MasterManager(std::string script_path, std::string src_file,
                 std::string dst_file);
 
   void RunMappers(uint32_t count) const;
   void RunReducers() const;
 
+  struct Record {
+    std::string key;
+    std::string value;
+
+    Record(std::string, std::string);
+    void DumpToFile(TmpFile& file) const;
+  };
+  typedef std::vector<Record> Records;
+
  private:
-  void Sort() const;
+  std::vector<TmpFile> Run(std::vector<TmpFile>& inputs) const;
 
   static Records ExtractRecords(const std::string& file);
   static std::vector<TmpFile> SplitRecordsIntoFiles(
