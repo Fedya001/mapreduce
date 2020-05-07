@@ -55,12 +55,17 @@ void MasterManager::RunReducers() const {
   JoinFiles(outputs, dst_file_);
 }
 
-MasterManager::Record::Record(std::string key, std::string value)
-    : key(std::move(key)), value(std::move(value)) {}
+struct MasterManager::Record {
+  std::string key;
+  std::string value;
 
-void MasterManager::Record::DumpToFile(TmpFile& file) const {
-  file.Stream() << key << '\t' << value << '\n';
-}
+  Record(std::string key, std::string value)
+      : key(std::move(key)), value(std::move(value)) {}
+
+  void DumpToFile(TmpFile& file) const {
+    file.Stream() << key << '\t' << value << '\n';
+  }
+};
 
 std::vector<TmpFile> MasterManager::Run(std::vector<TmpFile>& inputs) const {
   std::vector<TmpFile> outputs;

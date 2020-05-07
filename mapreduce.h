@@ -13,13 +13,7 @@ class MasterManager {
   void RunMappers(uint32_t count) const;
   void RunReducers() const;
 
-  struct Record {
-    std::string key;
-    std::string value;
-
-    Record(std::string, std::string);
-    void DumpToFile(TmpFile& file) const;
-  };
+  struct Record;
   typedef std::vector<Record> Records;
 
  private:
