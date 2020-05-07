@@ -11,12 +11,14 @@ int main(int argc, char** argv) {
 
     switch (spec.type) {
       case arg_parse::OperationType::MAP: {
-        manager.RunMappers(spec.count);
-        break;
+        auto status = manager.RunMappers(spec.count);
+        std::cout << status << '\n';
+        return status.ExitCode();
       }
       case arg_parse::OperationType::REDUCE: {
-        manager.RunReducers();
-        break;
+        auto status = manager.RunReducers();
+        std::cout << status << '\n';
+        return status.ExitCode();
       };
       default: throw std::logic_error("Unsupported operation type");
     }

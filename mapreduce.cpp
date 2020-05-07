@@ -14,7 +14,11 @@ MasterManager::MasterManager(std::string script_path, std::string src_file,
       src_file_(std::move(src_file)),
       dst_file_(std::move(dst_file)) {}
 
-void MasterManager::RunMappers(uint32_t count) const {
+int MasterManager::Status::ExitCode() const {
+  return (succeed_jobs_count < total_jobs_count) ? 1 : 0;
+}
+
+MasterManager::Status MasterManager::RunMappers(uint64_t count) const {
   auto records = ExtractRecords(src_file_);
 
   count = std::min(static_cast<size_t>(count), records.size());
@@ -26,11 +30,13 @@ void MasterManager::RunMappers(uint32_t count) const {
                 [](size_t& size) { ++size; });
 
   auto inputs = SplitRecordsIntoFiles(records, jobs_sizes);
-  auto outputs = Run(inputs);
+  Status status;
+  auto outputs = Run(inputs, &status);
   JoinFiles(outputs, dst_file_);
+  return status;
 }
 
-void MasterManager::RunReducers() const {
+MasterManager::Status MasterManager::RunReducers() const {
   auto records = ExtractRecords(src_file_);
   std::sort(records.begin(), records.end());
 
@@ -51,8 +57,10 @@ void MasterManager::RunReducers() const {
   }
 
   auto inputs = SplitRecordsIntoFiles(records, jobs_sizes);
-  auto outputs = Run(inputs);
+  Status status;
+  auto outputs = Run(inputs, &status);
   JoinFiles(outputs, dst_file_);
+  return status;
 }
 
 struct MasterManager::Record {
@@ -67,7 +75,8 @@ struct MasterManager::Record {
   }
 };
 
-std::vector<TmpFile> MasterManager::Run(std::vector<TmpFile>& inputs) const {
+std::vector<TmpFile> MasterManager::Run(std::vector<TmpFile>& inputs,
+                                        Status* status) const {
   std::vector<TmpFile> outputs;
   outputs.reserve(inputs.size());
 
@@ -82,8 +91,12 @@ std::vector<TmpFile> MasterManager::Run(std::vector<TmpFile>& inputs) const {
         bp::std_out > outputs.back().GetPath().string());
   }
 
+  status->total_jobs_count = inputs.size();
   for (auto&& child : children) {
     child.wait();
+    if (child.exit_code() == 0) {
+      ++status->succeed_jobs_count;
+    }
   }
 
   return outputs;
@@ -140,6 +153,12 @@ void MasterManager::JoinFiles(std::vector<TmpFile>& files,
 bool operator<(const MasterManager::Record& lhs,
                const MasterManager::Record& rhs) {
   return lhs.key < rhs.key;
+}
+
+std::ostream& operator<<(std::ostream& out, MasterManager::Status result) {
+  return out << result.succeed_jobs_count << " out of "
+             << result.total_jobs_count << " child processed succeed. "
+             << "Exiting with code " << result.ExitCode() << '.';
 }
 
 } // namespace mapreduce

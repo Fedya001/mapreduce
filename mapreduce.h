@@ -10,8 +10,15 @@ class MasterManager {
   MasterManager(std::string script_path, std::string src_file,
                 std::string dst_file);
 
-  void RunMappers(uint32_t count) const;
-  void RunReducers() const;
+  struct Status {
+    int64_t succeed_jobs_count = 0;
+    int64_t total_jobs_count = 0;
+
+    [[nodiscard]] int ExitCode() const;
+  };
+
+  [[nodiscard]] Status RunMappers(uint64_t count) const;
+  [[nodiscard]] Status RunReducers() const;
 
  private:
   struct Record;
@@ -19,7 +26,7 @@ class MasterManager {
 
   friend bool operator<(const Record&, const Record&);
 
-  std::vector<TmpFile> Run(std::vector<TmpFile>& inputs) const;
+  std::vector<TmpFile> Run(std::vector<TmpFile>& inputs, Status* status) const;
 
   static Records ExtractRecords(const std::string& file);
   static std::vector<TmpFile> SplitRecordsIntoFiles(
@@ -32,5 +39,7 @@ class MasterManager {
   std::string src_file_;
   std::string dst_file_;
 };
+
+std::ostream& operator<<(std::ostream& out, MasterManager::Status result);
 
 } // namespace mapreduce
