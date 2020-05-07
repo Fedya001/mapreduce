@@ -13,10 +13,12 @@ class MasterManager {
   void RunMappers(uint32_t count) const;
   void RunReducers() const;
 
+ private:
   struct Record;
   typedef std::vector<Record> Records;
 
- private:
+  friend bool operator<(const Record&, const Record&);
+
   std::vector<TmpFile> Run(std::vector<TmpFile>& inputs) const;
 
   static Records ExtractRecords(const std::string& file);
