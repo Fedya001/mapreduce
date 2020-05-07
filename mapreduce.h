@@ -20,6 +20,14 @@ class MasterManager {
   [[nodiscard]] Status RunMappers(uint64_t count) const;
   [[nodiscard]] Status RunReducers() const;
 
+  [[nodiscard]] const std::string& GetScriptPath() const;
+  [[nodiscard]] const std::string& GetSrcFile() const;
+  [[nodiscard]] const std::string& GetDstFile() const;
+
+  void SetScriptPath(std::string script_path);
+  void SetSrcFile(std::string src_file);
+  void SetDstFile(std::string dst_file);
+
  private:
   struct Record;
   typedef std::vector<Record> Records;

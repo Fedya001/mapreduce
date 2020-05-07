@@ -63,6 +63,30 @@ MasterManager::Status MasterManager::RunReducers() const {
   return status;
 }
 
+const std::string& MasterManager::GetScriptPath() const {
+  return script_path_;
+}
+
+const std::string& MasterManager::GetSrcFile() const {
+  return src_file_;
+}
+
+const std::string& MasterManager::GetDstFile() const {
+  return dst_file_;
+}
+
+void MasterManager::SetScriptPath(std::string script_path) {
+  script_path_ = std::move(script_path);
+}
+
+void MasterManager::SetSrcFile(std::string src_file) {
+  src_file_ = std::move(src_file);
+}
+
+void MasterManager::SetDstFile(std::string dst_file) {
+  dst_file_ = std::move(dst_file);
+}
+
 struct MasterManager::Record {
   std::string key;
   std::string value;
