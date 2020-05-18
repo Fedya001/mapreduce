@@ -94,6 +94,13 @@ struct MasterManager::Record {
   Record(std::string key, std::string value)
       : key(std::move(key)), value(std::move(value)) {}
 
+  explicit Record(std::string line) {
+    size_t tab_pos = line.find('\t');
+    value = line.substr(tab_pos + 1);
+    key = std::move(line);
+    key.erase(tab_pos);
+  }
+
   void DumpToFile(TmpFile& file) const {
     file.Stream() << key << '\t' << value << '\n';
   }
@@ -134,10 +141,7 @@ MasterManager::Records MasterManager::ExtractRecords(
   while (src.peek() != EOF) {
     std::string buffer;
     std::getline(src, buffer);
-    size_t tab_pos = buffer.find('\t');
-    auto value = buffer.substr(tab_pos + 1);
-    buffer.erase(tab_pos);
-    records.emplace_back(std::move(buffer), std::move(value));
+    records.emplace_back(std::move(buffer));
   }
 
   return records;
