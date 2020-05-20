@@ -3,6 +3,8 @@
 #include "arg_parse.h"
 #include "utils/tmpfile.h"
 
+#include <queue>
+
 namespace mapreduce {
 
 class MasterManager {
@@ -35,6 +37,13 @@ class MasterManager {
   friend bool operator<(const Record&, const Record&);
 
   std::vector<TmpFile> Run(std::vector<TmpFile>& inputs, Status* status) const;
+
+  // `SortedPile` is a list of sorted files. If we join them all together, we'll
+  // get a sorted list of `Record`s.
+  typedef std::queue<TmpFile> SortedPile;
+  void Sort(uint64_t records_per_file = 10'000) const;
+  static SortedPile MergePiles(SortedPile left_pile, SortedPile right_pile,
+                               uint64_t records_per_file);
 
   static Records ExtractRecords(const std::string& file);
   static std::vector<TmpFile> SplitRecordsIntoFiles(

@@ -4,6 +4,8 @@
 #include <boost/process.hpp>
 #include <vector>
 
+#include <iostream>
+
 namespace mapreduce {
 
 namespace bp = boost::process;
@@ -37,8 +39,8 @@ MasterManager::Status MasterManager::RunMappers(uint64_t count) const {
 }
 
 MasterManager::Status MasterManager::RunReducers() const {
+  Sort();
   auto records = ExtractRecords(src_file_);
-  std::sort(records.begin(), records.end());
 
   std::vector<size_t> jobs_sizes;
   auto iter = records.begin();
@@ -102,7 +104,11 @@ struct MasterManager::Record {
   }
 
   void DumpToFile(TmpFile& file) const {
-    file.Stream() << key << '\t' << value << '\n';
+    DumpToFile(file.Stream());
+  }
+
+  void DumpToFile(std::ostream& out) const {
+    out << key << '\t' << value << '\n';
   }
 };
 
@@ -131,6 +137,108 @@ std::vector<TmpFile> MasterManager::Run(std::vector<TmpFile>& inputs,
   }
 
   return outputs;
+}
+
+void MasterManager::Sort(uint64_t records_per_file) const {
+  std::queue<SortedPile> piles;
+
+  std::ifstream input(src_file_);
+  while (input.peek() != EOF) {
+    Records records_batch;
+    records_batch.reserve(records_per_file);
+    for (uint64_t id = 0; id < records_per_file && input.peek() != EOF; ++id) {
+      std::string line;
+      std::getline(input, line);
+      records_batch.emplace_back(std::move(line));
+    }
+    std::sort(records_batch.begin(), records_batch.end());
+
+    TmpFile batch(std::ios::out);
+    for (const auto& record : records_batch) {
+      record.DumpToFile(batch);
+    }
+    batch.Flush();
+
+    SortedPile pile;
+    pile.push(std::move(batch));
+    piles.push(std::move(pile));
+  }
+
+  while (piles.size() > 1) {
+    auto lhs = std::move(piles.front());
+    piles.pop();
+    auto rhs = std::move(piles.front());
+    piles.pop();
+    piles.push(MergePiles(std::move(lhs), std::move(rhs), records_per_file));
+  }
+
+  std::ofstream output(src_file_);
+  auto pile = std::move(piles.front());
+  while (!pile.empty()) {
+    auto tmp_file = std::move(pile.front());
+    pile.pop();
+
+    auto records = ExtractRecords(tmp_file.GetPath().string());
+    for (const auto& record : records) {
+      record.DumpToFile(output);
+    }
+  }
+}
+
+MasterManager::SortedPile MasterManager::MergePiles(
+    SortedPile left_pile, SortedPile right_pile, uint64_t records_per_file) {
+  if (left_pile.empty()) { return right_pile; }
+  if (right_pile.empty()) { return left_pile; }
+
+  SortedPile result;
+
+  uint64_t left_index = 0, right_index = 0;
+  auto left_records = ExtractRecords(left_pile.front().GetPath().string());
+  auto right_records = ExtractRecords(right_pile.front().GetPath().string());
+
+  uint64_t records_printed = 0;
+  TmpFile current_output(std::ios::in | std::ios::out);
+  while (!left_pile.empty() || !right_pile.empty()) {
+    if (!left_pile.empty() && (right_pile.empty() ||
+        left_records[left_index] < right_records[right_index])) {
+      // Read from left pile.
+      left_records[left_index++].DumpToFile(current_output);
+      if (left_index == left_records.size()) {
+        left_pile.pop();
+        if (!left_pile.empty()) {
+          // Read next file from left pile.
+          left_records = ExtractRecords(left_pile.front().GetPath().string());
+          left_index = 0;
+        }
+      }
+    } else {
+      // Read from right pile.
+      right_records[right_index++].DumpToFile(current_output);
+      if (right_index == right_records.size()) {
+        right_pile.pop();
+        if (!right_pile.empty()) {
+          // Read next file from right pile.
+          right_records = ExtractRecords(right_pile.front().GetPath().string());
+          right_index = 0;
+        }
+      }
+    }
+
+    ++records_printed;
+    if (records_printed == records_per_file) {
+      current_output.Flush();
+      result.push(std::move(current_output));
+      current_output = TmpFile(std::ios::in | std::ios::out);
+      records_printed = 0;
+    }
+  }
+
+  if (records_printed != 0) {
+    current_output.Flush();
+    result.push(std::move(current_output));
+  }
+
+  return result;
 }
 
 MasterManager::Records MasterManager::ExtractRecords(
