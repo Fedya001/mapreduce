@@ -45,6 +45,7 @@ class MasterManager {
   static SortedPile MergePiles(SortedPile left_pile, SortedPile right_pile,
                                uint64_t records_per_file);
 
+  static uint64_t CountRecords(const std::string& file);
   static Records ExtractRecords(const std::string& file);
   static std::vector<TmpFile> SplitRecordsIntoFiles(
       const Records& records, const std::vector<size_t>& jobs_sizes);

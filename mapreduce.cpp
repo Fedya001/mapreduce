@@ -241,8 +241,13 @@ MasterManager::SortedPile MasterManager::MergePiles(
   return result;
 }
 
-MasterManager::Records MasterManager::ExtractRecords(
-    const std::string& file) {
+uint64_t MasterManager::CountRecords(const std::string& file) {
+  std::ifstream src(file);
+  return std::count(std::istreambuf_iterator<char>(src),
+                    std::istreambuf_iterator<char>(), '\n');
+}
+
+MasterManager::Records MasterManager::ExtractRecords(const std::string& file) {
   Records records;
 
   std::ifstream src(file);
