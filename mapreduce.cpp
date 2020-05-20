@@ -21,17 +21,17 @@ int MasterManager::Status::ExitCode() const {
 }
 
 MasterManager::Status MasterManager::RunMappers(uint64_t count) const {
-  auto records = ExtractRecords(src_file_);
+  uint64_t records_count = CountRecords(src_file_);
 
-  count = std::min(static_cast<size_t>(count), records.size());
-  size_t records_per_map = records.size() / count;
-  size_t extra_records_number = records.size() % count;
+  count = std::min(static_cast<size_t>(count), records_count);
+  size_t records_per_map = records_count / count;
+  size_t extra_records_number = records_count % count;
 
   std::vector<size_t> jobs_sizes(count, records_per_map);
   std::for_each(jobs_sizes.begin(), jobs_sizes.begin() + extra_records_number,
                 [](size_t& size) { ++size; });
 
-  auto inputs = SplitRecordsIntoFiles(records, jobs_sizes);
+  auto inputs = SplitRecordsIntoFiles(src_file_, jobs_sizes);
   Status status;
   auto outputs = Run(inputs, &status);
   JoinFiles(outputs, dst_file_);
@@ -39,26 +39,9 @@ MasterManager::Status MasterManager::RunMappers(uint64_t count) const {
 }
 
 MasterManager::Status MasterManager::RunReducers() const {
-  Sort();
-  auto records = ExtractRecords(src_file_);
+  auto sorted_pile = Sort();
+  auto inputs = SplitRecordsIntoFiles(std::move(sorted_pile));
 
-  std::vector<size_t> jobs_sizes;
-  auto iter = records.begin();
-
-  while (iter != records.end()) {
-    auto next = std::adjacent_find(
-        iter, records.end(), [](const auto& lhs, const auto& rhs) {
-          return lhs.key != rhs.key;
-        });
-    jobs_sizes.push_back(std::distance(iter, next));
-    iter = next;
-    if (iter != records.end()) {
-      ++iter;
-      ++jobs_sizes.back();
-    }
-  }
-
-  auto inputs = SplitRecordsIntoFiles(records, jobs_sizes);
   Status status;
   auto outputs = Run(inputs, &status);
   JoinFiles(outputs, dst_file_);
@@ -139,7 +122,7 @@ std::vector<TmpFile> MasterManager::Run(std::vector<TmpFile>& inputs,
   return outputs;
 }
 
-void MasterManager::Sort(uint64_t records_per_file) const {
+MasterManager::SortedPile MasterManager::Sort(uint64_t records_per_file) const {
   std::queue<SortedPile> piles;
 
   std::ifstream input(src_file_);
@@ -172,17 +155,7 @@ void MasterManager::Sort(uint64_t records_per_file) const {
     piles.push(MergePiles(std::move(lhs), std::move(rhs), records_per_file));
   }
 
-  std::ofstream output(src_file_);
-  auto pile = std::move(piles.front());
-  while (!pile.empty()) {
-    auto tmp_file = std::move(pile.front());
-    pile.pop();
-
-    auto records = ExtractRecords(tmp_file.GetPath().string());
-    for (const auto& record : records) {
-      record.DumpToFile(output);
-    }
-  }
+  return std::move(piles.front());
 }
 
 MasterManager::SortedPile MasterManager::MergePiles(
@@ -261,21 +234,48 @@ MasterManager::Records MasterManager::ExtractRecords(const std::string& file) {
 }
 
 std::vector<TmpFile> MasterManager::SplitRecordsIntoFiles(
-    const MasterManager::Records& records,
+    const std::string& file,
     const std::vector<size_t>& jobs_sizes) {
   std::vector<TmpFile> files;
   files.reserve(jobs_sizes.size());
   std::generate_n(std::back_inserter(files), jobs_sizes.size(),
                   [] { return TmpFile(std::ios::in | std::ios::out); });
 
-  size_t record_id = 0;
+  std::ifstream src(file);
+  std::string line;
   for (size_t job_id = 0; job_id < jobs_sizes.size(); ++job_id) {
     for (size_t i = 0; i < jobs_sizes[job_id]; ++i) {
-      records[record_id++].DumpToFile(files[job_id]);
+      std::getline(src, line);
+      files[job_id].Stream() << line << '\n';
     }
     files[job_id].Stream().flush();
   }
 
+  return files;
+}
+
+std::vector<TmpFile> MasterManager::SplitRecordsIntoFiles(
+    MasterManager::SortedPile pile) {
+  std::vector<TmpFile> files;
+
+  std::optional<std::string> last_key;
+  while (!pile.empty()) {
+    auto tmp_file = std::move(pile.front());
+    pile.pop();
+
+    auto records = ExtractRecords(tmp_file.GetPath().string());
+    for (const auto& record : records) {
+      if (!last_key || *last_key != record.key) {
+        files.emplace_back(std::ios::in | std::ios::out);
+      }
+      last_key = record.key;
+      record.DumpToFile(files.back());
+    }
+  }
+
+  for (auto&& file : files) {
+    file.Flush();
+  }
   return files;
 }
 

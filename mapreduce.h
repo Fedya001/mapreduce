@@ -41,14 +41,19 @@ class MasterManager {
   // `SortedPile` is a list of sorted files. If we join them all together, we'll
   // get a sorted list of `Record`s.
   typedef std::queue<TmpFile> SortedPile;
-  void Sort(uint64_t records_per_file = 10'000) const;
+  [[nodiscard]] SortedPile Sort(uint64_t records_per_file = 10'000) const;
   static SortedPile MergePiles(SortedPile left_pile, SortedPile right_pile,
                                uint64_t records_per_file);
 
   static uint64_t CountRecords(const std::string& file);
   static Records ExtractRecords(const std::string& file);
+
   static std::vector<TmpFile> SplitRecordsIntoFiles(
-      const Records& records, const std::vector<size_t>& jobs_sizes);
+      const std::string& file, const std::vector<size_t>& jobs_sizes);
+
+  // Splits records by keys.
+  static std::vector<TmpFile> SplitRecordsIntoFiles(SortedPile pile);
+
   static void JoinFiles(std::vector<TmpFile>& files,
                         const std::string& joined_file);
 
