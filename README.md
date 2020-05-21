@@ -1,6 +1,6 @@
-# In-Memory MapReduce
+# MapReduce algorithm
 
-In-memory implementation of MapReduce algorithm. There are two modes: map and reduce.
+Implementation of MapReduce algorithm. There are two modes: map and reduce.
 In map mode code splits up the task and runs mappers in child processes. In reduce —
 it groups all records by keys and runs reducer per each key.
 
