@@ -37,6 +37,9 @@ class MasterManager {
   friend bool operator<(const Record&, const Record&);
 
   std::vector<TmpFile> Run(std::vector<TmpFile>& inputs, Status* status) const;
+  template<class ForwardIt>
+  void RunBatch(ForwardIt first, ForwardIt last,
+                std::vector<TmpFile>& outputs, Status* status) const;
 
   // `SortedPile` is a list of sorted files. If we join them all together, we'll
   // get a sorted list of `Record`s.
@@ -61,6 +64,11 @@ class MasterManager {
   std::string script_path_;
   std::string src_file_;
   std::string dst_file_;
+
+  // The number of child processes in such approach can be very large.
+  // And we can even run out of pis. To fix this, we limit the number of child
+  // processes which can work in parallel.
+  const uint64_t kChildNumberLimit_ = 500;
 };
 
 std::ostream& operator<<(std::ostream& out, MasterManager::Status result);

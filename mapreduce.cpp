@@ -102,24 +102,43 @@ std::vector<TmpFile> MasterManager::Run(std::vector<TmpFile>& inputs,
 
   std::vector<bp::child> children;
   children.reserve(inputs.size());
-  for (auto&& input : inputs) {
+
+  auto prev_iter = inputs.begin();
+  while (prev_iter != inputs.end()) {
+    auto next_iter = prev_iter + std::min(
+        kChildNumberLimit_,
+        static_cast<uint64_t>(std::distance(prev_iter, inputs.end())));
+    RunBatch(prev_iter, next_iter, outputs, status);
+    prev_iter = next_iter;
+  }
+
+  return outputs;
+}
+
+template<class ForwardIt>
+void MasterManager::RunBatch(
+    ForwardIt first, ForwardIt last, std::vector<TmpFile>& outputs,
+    MasterManager::Status* status) const {
+  uint64_t batch_size = std::distance(first, last);
+  std::vector<bp::child> children;
+  children.reserve(batch_size);
+
+  for (auto iter = first; iter != last; ++iter) {
     outputs.emplace_back(std::ios::in | std::ios::out);
     children.emplace_back(
         bp::search_path(script_path_,
                         {boost::filesystem::current_path()}).string(),
-        bp::std_in < input.GetPath().string(),
+        bp::std_in < iter->GetPath().string(),
         bp::std_out > outputs.back().GetPath().string());
   }
 
-  status->total_jobs_count = inputs.size();
+  status->total_jobs_count += batch_size;
   for (auto&& child : children) {
     child.wait();
     if (child.exit_code() == 0) {
       ++status->succeed_jobs_count;
     }
   }
-
-  return outputs;
 }
 
 MasterManager::SortedPile MasterManager::Sort(uint64_t records_per_file) const {
