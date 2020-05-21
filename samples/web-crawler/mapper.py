@@ -8,7 +8,12 @@ import requests
 
 
 def visit_url(url):
-  page = requests.get(url)
+  try:
+    page = requests.get(url)
+  except:
+    # We hit invalid url.
+    return
+
   webpage = html.fromstring(page.content)
 
   urls = webpage.xpath("//a/@href")
