@@ -10,19 +10,19 @@ import requests
 def visit_url(url):
   try:
     page = requests.get(url)
+    webpage = html.fromstring(page.content)
+
+    urls = webpage.xpath("//a/@href")
+    for next_url in urls:
+      # Check, whether it's a relative url.
+      if not next_url.startswith("http"):
+        yield urljoin(url, next_url)
+      else:
+        yield url
+
   except:
     # We hit invalid url.
     return
-
-  webpage = html.fromstring(page.content)
-
-  urls = webpage.xpath("//a/@href")
-  for next_url in urls:
-    # Check, whether it's a relative url.
-    if not next_url.startswith("http"):
-      yield urljoin(url, next_url)
-    else:
-      yield url
 
 
 def main():
