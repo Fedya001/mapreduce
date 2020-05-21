@@ -34,8 +34,8 @@ fi
 
 for ((i=0; i < $8; i++)); do
   echo "[depth = $((i + 1))]"
-  # Run at most 10'000 mappers.
-  "$1" --map -s "$2" -i "$5" -o "$6" -c 10000
+  # Run at most 400 mappers.
+  "$1" --map -s "$2" -i "$5" -o "$6" -c 400
   mv "$6" "$5"
   echo "[OK] map stage"
 
