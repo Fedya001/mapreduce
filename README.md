@@ -1,8 +1,9 @@
 # MapReduce algorithm
 
-Implementation of MapReduce algorithm. There are two modes: map and reduce.
-In map mode code splits up the task and runs mappers in child processes. In reduce —
-it groups all records by keys and runs reducer per each key.
+This is simple single-machine multi-process implementation of MapReduce algorithm for studying purposes only.
+There are two modes: map and reduce. In map mode algorithm splits up the task and runs mappers
+in child processes. In reduce mode it groups all records by keys and runs a reducer in child proccess
+per each unique key.
 
 `Boost.Process` is used for executing child processes.
 
