@@ -45,3 +45,8 @@ more than once. That's why we need `reducer.py`, which removes duplicates and ma
 appropriately at reduce stage of algorithm. Thus, this two scripts guarantee that no url
 is visited twice. `final_reducer.py` simply cleans up unnecessary labels and deletes invalid urls.
 `web_crawler.py` runs all this stuff, having `--depth` option for specifying crawler's investigation depth.
+
+Small note: before running large investigation make sure to set sufficient limit of open files:
+```
+ulimit -n 1000000
+```
