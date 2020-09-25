@@ -100,9 +100,6 @@ std::vector<TmpFile> MasterManager::Run(std::vector<TmpFile>& inputs,
   std::vector<TmpFile> outputs;
   outputs.reserve(inputs.size());
 
-  std::vector<bp::child> children;
-  children.reserve(inputs.size());
-
   auto prev_iter = inputs.begin();
   while (prev_iter != inputs.end()) {
     auto next_iter = prev_iter + std::min(
