@@ -14,6 +14,10 @@ void TmpFile::Reopen(std::ios::openmode mode) {
   stream_.open(path_.string(), mode);
 }
 
+void TmpFile::Flush() {
+  stream_.flush();
+}
+
 std::fstream& TmpFile::Stream() {
   return stream_;
 }

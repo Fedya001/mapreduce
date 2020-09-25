@@ -1,8 +1,9 @@
-# In-Memory MapReduce
+# MapReduce algorithm
 
-In-memory implementation of MapReduce algorithm. There are two modes: map and reduce.
-In map mode code splits up the task and runs mappers in child processes. In reduce — 
-it groups all records by keys and runs reducer per each key.
+This is simple single-machine multi-process implementation of MapReduce algorithm for studying purposes only.
+There are two modes: map and reduce. In map mode algorithm splits up the task and runs mappers
+in child processes. In reduce mode it groups all records by keys and runs a reducer in child proccess
+per each unique key.
 
 `Boost.Process` is used for executing child processes.
 
@@ -31,6 +32,22 @@ Arguments:
 
 ## Sample mappers and reducers
 
-`samples/word_count_bash/` contains `mapper.sh` and `reducer.sh` scripts,
+### Word count
+`samples/word-count/` contains `mapper.sh` and `reducer.sh` scripts,
 which solve word count problem, i.e. we are given a tsv `key`-`value` file and
 we want to count number of occurences of each word in all `value`s (words are split by space).
+
+### Web crawler
+`samples/web-crawler/` has a web-crawler algorithm implemented on MapReduce model.
+`mapper.py` expects a tsv `key`-`value` file, where `key` is an url and `value` is a label,
+which can be either 0 or 1. 1 is for marking url as visited, 0 - as unvisited.
+`mapper.py` basically does some sort of bfs. But at this step some urls can occur in file
+more than once. That's why we need `reducer.py`, which removes duplicates and marks labels
+appropriately at reduce stage of algorithm. Thus, this two scripts guarantee that no url
+is visited twice. `final_reducer.py` simply cleans up unnecessary labels and deletes invalid urls.
+`web_crawler.py` runs all this stuff, having `--depth` option for specifying crawler's investigation depth.
+
+Small note: before running large investigation make sure to set sufficient limit of open files:
+```
+ulimit -n 1000000
+```

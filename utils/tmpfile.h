@@ -16,6 +16,7 @@ class TmpFile {
   TmpFile& operator=(TmpFile&&) = default;
 
   void Reopen(std::ios::openmode mod);
+  void Flush();
   std::fstream& Stream();
 
   boost::filesystem::path GetPath() const;
