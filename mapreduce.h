@@ -66,7 +66,7 @@ class MasterManager {
   std::string dst_file_;
 
   // The number of child processes in such approach can be very large.
-  // And we can even run out of pis. To fix this, we limit the number of child
+  // And we can even run out of pids. To fix this, we limit the number of child
   // processes which can work in parallel.
   const uint64_t kChildNumberLimit_ = 500;
 };
